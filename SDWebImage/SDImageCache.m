@@ -267,17 +267,7 @@ BOOL ImageDataHasPNGPreffix(NSData *data) {
 - (NSOperation *)queryDiskCacheForKey:(NSString *)key done:(void (^)(UIImage *image, SDImageCacheType cacheType))doneBlock {
     NSOperation *operation = [NSOperation new];
 
-    if (!doneBlock) return nil;
-
-    if (!key) {
-        doneBlock(nil, SDImageCacheTypeNone);
-        return nil;
-    }
-
-    // First check the in-memory cache...
-    UIImage *image = [self imageFromMemoryCacheForKey:key];
-    if (image) {
-        doneBlock(image, SDImageCacheTypeMemory);
+    if (!doneBlock) {
         return nil;
     }
 
@@ -287,15 +277,25 @@ BOOL ImageDataHasPNGPreffix(NSData *data) {
         }
 
         @autoreleasepool {
+            if (!key) {
+                doneBlock(nil, SDImageCacheTypeNone);
+                return;
+            }
+            
+            // First check the in-memory cache...
+            UIImage *image = [self imageFromMemoryCacheForKey:key];
+            if (image) {
+                doneBlock(image, SDImageCacheTypeMemory);
+                return;
+            }
+            
             UIImage *diskImage = [self diskImageForKey:key];
             if (diskImage) {
                 CGFloat cost = diskImage.size.height * diskImage.size.width * diskImage.scale;
                 [self.memCache setObject:diskImage forKey:key cost:cost];
             }
 
-            dispatch_async(dispatch_get_main_queue(), ^{
-                doneBlock(diskImage, SDImageCacheTypeDisk);
-            });
+            doneBlock(diskImage, SDImageCacheTypeDisk);
         }
     });
 
